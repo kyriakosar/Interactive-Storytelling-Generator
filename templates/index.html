@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Let's create a story together!</title>
+    <!-- Link Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #c8d0d0;
+            text-align: center;
+            margin: 40px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        button {
+            background-color: #d8230f;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #f50853;
+        }
+
+        #story-container {
+            margin-top: 20px;
+            text-align: left;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+
+        #story-container h2 {
+            color: #000000; 
+            font-size: 24px; 
+            margin-bottom: 10px; 
+            text-align: center;
+        }
+
+        /* Add Bootstrap classes for improved styling */
+        .container {
+            max-width: 600px;
+        }
+
+        .mt-4 {
+            margin-top: 1.5rem;
+        }
+
+        .btn-group {
+            margin-top: 1rem;
+        }
+
+        .btn-group button {
+            margin-right: 5px;
+        }
+
+    </style>
+</head>
+<body class="container">
+
+    <h1 class="mt-4">Let's create a story together!</h1>
+
+    <button class="btn btn-outline-dark" onclick="startInteraction()">Generate Story</button>
+
+    <div id="story-container" class="mt-4"></div>
+
+    <div id="continue-button-container" class="mt-4">
+        <button id="continue-button" style="display: none;" class="btn btn-success" onclick="continueInteraction()">Continue Story</button>
+    </div>
+
+    <div id="end-button-container" class="mt-4">
+        <button id="end-button" style="display: none;" class="btn btn-danger" onclick="showEndOptions()">End Story</button>
+    </div>
+
+    <div id="end-options" style="display: none;" class="mt-4">
+        <div class="btn-group" role="group" aria-label="End Options">
+            <button type="button" class="btn btn-outline-success" id="end-option-1" onclick="endStory(1)">Wait for Option 1...</button>
+            <button type="button" class="btn btn-outline-warning" id="end-option-2" onclick="endStory(2)">Wait for Option 2...</button>
+        </div>
+    </div>
+    
+
+    <!-- Include Bootstrap JS and Popper.js -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+
+    <script>
+        let story = {};  // Store the story object globally
+
+        async function startInteraction() {
+        // Initialize the story object
+        story = {
+            title: await getInput("Enter the title of the story:"),
+            category: await getInput("Enter the category of the story (e.g., action, scary, sci-fi):"),
+            characters: [],
+            plotPoints: [],
+            generatedStory: "", // Initialize the generated story
+        };
+
+        // Ask for characters
+        await addCharacters(story);
+
+        // Generate the initial part of the story using OpenAI GPT-3
+        await generateStoryWithGPT3(story);
+
+        // Display the whole story
+        displayStory();
+
+        //show the "End Story" button
+        document.getElementById('end-button').style.display = 'block';
+
+        // Show the "Continue Story" button
+        document.getElementById('continue-button').style.display = 'block';
+    }
+
+        function continueInteraction() {
+            // Continue with the real-time interaction loop
+            realTimeInteraction(story);
+        }
+
+        async function realTimeInteraction(story) {
+            // Continue the real-time interaction
+            let continueInteraction = true;
+
+            while (continueInteraction) {
+                // Ask the user for a decision
+                const userChoice = await getInput("The next sentence of the story is up to you! (or type 'done' to finish):");
+
+                if (userChoice.toLowerCase() === 'done') {
+                    continueInteraction = false;
+                } else {
+                    
+                    // capitalize the first letter of the user's choice
+                    const capitalizedUserChoice = capitalizeOnlyFirstLetter(userChoice);
+                    // if there is no stop punctuation at the end of the user's choice, add a period
+                    if (capitalizedUserChoice.slice(-1) !== '.' && capitalizedUserChoice.slice(-1) !== '!' && capitalizedUserChoice.slice(-1) !== '?') {
+                        story.generatedStory += " " + capitalizedUserChoice;
+                    } else {
+                        story.generatedStory += " " + capitalizedUserChoice;
+                    }
+
+                    story.plotPoints.push(capitalizedUserChoice);
+                    continueInteraction = false;
+            
+                }
+                // Generate the updated story using OpenAI GPT-3
+                await generateStoryWithGPT3(story);
+
+                // Display the whole story after each decision
+                displayStory();
+            }
+        }
+
+        async function addCharacters(story) {
+            let addCharacter = true;
+            while (addCharacter) {
+                const character = await getInput("Enter a character (or type 'done' to finish):");
+                if (character.toLowerCase() === 'done') {
+                    addCharacter = false;
+                } else {
+                    story.characters.push(character);
+                }
+            }
+        }
+
+        async function generateStoryWithGPT3(story) {
+            
+            // Make an API call to OpenAI GPT-3
+            const response = await fetch('/generate_story', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prompt: JSON.stringify(story) }),
+            });
+
+            const result = await response.json();
+            const generatedStory = result.generated_story.split('.').slice(0, -1).join('.') + '.';
+            // Set the updated story
+            story.generatedStory += " " + generatedStory;
+        }
+
+
+        function capitalizeFirstLetter(str) {
+            return str.replace(/\b\w/g, (match) => match.toUpperCase());
+        }
+
+        function capitalizeOnlyFirstLetter(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        async function showEndOptions() {
+            // Hide the "End Story" button
+            document.getElementById('end-button').style.display = 'none';
+
+            // Hide the "Continue Story" button
+            document.getElementById('continue-button').style.display = 'none';
+
+            // Show the "End Options" container
+            document.getElementById('end-options').style.display = 'block';
+
+            // Populate the buttons with the fetched stories
+            const [endStory1, endStory2] = await Promise.all([
+                generateEndStory(story),
+                generateEndStory(story)
+            ]);
+
+            // Display the generated stories on the buttons
+            document.getElementById('end-option-1').innerText = endStory1;
+            document.getElementById('end-option-2').innerText = endStory2;
+        }
+
+
+
+        function endStory(selectedOptionIndex) {
+            const selectedOptionText = document.getElementById(`end-option-${selectedOptionIndex}`).innerText;
+            story.generatedStory += " " + selectedOptionText;
+
+            // Hide the "End Options" container
+            document.getElementById('end-options').style.display = 'none';
+
+            // Display the whole story
+            displayStory();
+        }
+
+
+        function displayStory() {
+
+            const storyContainer = document.getElementById('story-container');
+            const capitalizedTitle = capitalizeFirstLetter(story.title);
+            storyContainer.innerHTML = `<h2>${capitalizedTitle}</h2><p>${story.generatedStory}</p>`;    
+        }
+
+        async function generateEndStory(story) {
+            
+            // Generate a random story using OpenAI GPT-3
+            const response = await fetch('/generate_random_story', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prompt: JSON.stringify(story) }),
+            });
+
+            const result = await response.json();
+            const generatedStory = result.generate_random_story.split('.').slice(0, -1).join('.') + '.';
+            
+            return generatedStory;
+        }
+
+        async function getInput(message) {
+            return new Promise((resolve) => {
+                const userInput = prompt(message);
+                resolve(userInput);
+            });
+        }
+    </script>
+</body>
+</html>
